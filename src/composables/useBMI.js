@@ -1,8 +1,5 @@
-// useBMI.js — BMI calculation logic with gender-aware formulas
-
 export function useBMI() {
 
-  // ── BMI Category ──────────────────────────────────────────────────────────
   function getBMICategory(bmi) {
     if (bmi < 17.0) return { key: 'very_underweight', label: 'Sangat Kurus',      color: '#3b82f6', colorLight: '#dbeafe', colorDark: '#1e40af' }
     if (bmi < 18.5) return { key: 'underweight',      label: 'Berat Rendah',      color: '#60a5fa', colorLight: '#eff6ff', colorDark: '#1d4ed8' }
@@ -14,8 +11,6 @@ export function useBMI() {
     return                  { key: 'obese3',           label: 'Obesitas Tingkat III',color:'#dc2626',colorLight: '#fef2f2', colorDark: '#450a0a' }
   }
 
-  // ── BMR — Mifflin-St Jeor (gender-aware) ─────────────────────────────────
-  // Gender DOES affect BMR: men have higher muscle mass → higher baseline
   function calculateBMR(weight, height, age, gender) {
     if (gender === 'male') {
       return 10 * weight + 6.25 * height - 5 * age + 5
@@ -24,7 +19,6 @@ export function useBMI() {
     }
   }
 
-  // ── TDEE — Activity multiplier ────────────────────────────────────────────
   const activityMultipliers = {
     sedentary:   { factor: 1.2,  label: 'Sangat Rendah',  desc: 'Tidak olahraga / kerja kantoran' },
     light:       { factor: 1.375,label: 'Ringan',         desc: 'Olahraga ringan 1–3 hari/minggu' },
@@ -38,24 +32,17 @@ export function useBMI() {
     return Math.round(bmr * mult)
   }
 
-  // ── Macro breakdown from TDEE ──────────────────────────────────────────────
-  // Adjusted by BMI category & gender
   function calculateMacros(tdee, bmiKey, gender) {
     let carbPct, protPct, fatPct
 
-    // Different macro split goals based on BMI target
     if (bmiKey === 'very_underweight' || bmiKey === 'underweight') {
-      // Gain weight: higher carb + protein
       carbPct = 0.50; protPct = 0.25; fatPct = 0.25
     } else if (bmiKey === 'normal' || bmiKey === 'overweight_risk') {
-      // Maintain: balanced
       carbPct = 0.45; protPct = 0.25; fatPct = 0.30
     } else {
-      // Lose weight: lower carb, higher protein
       carbPct = 0.35; protPct = 0.35; fatPct = 0.30
     }
 
-    // Protein needs differ by gender (men slightly higher lean mass)
     const proteinPerKg = gender === 'male' ? 1.8 : 1.6
 
     const carbCal  = Math.round(tdee * carbPct)
@@ -66,13 +53,12 @@ export function useBMI() {
       carb:    { cal: carbCal,  gram: Math.round(carbCal / 4),    pct: Math.round(carbPct * 100) },
       protein: { cal: protCal,  gram: Math.round(protCal / 4),    pct: Math.round(protPct * 100) },
       fat:     { cal: fatCal,   gram: Math.round(fatCal / 9),     pct: Math.round(fatPct * 100) },
-      sugar:   { gram: Math.round(tdee * 0.05 / 4) },   // WHO: max 5% of total energy
-      fiber:   { gram: gender === 'male' ? 38 : 25 },   // Gender-specific fiber: men 38g, women 25g
-      water:   { ml: gender === 'male' ? Math.round(35 * 75) : Math.round(31 * 60) }, // rough
+      sugar:   { gram: Math.round(tdee * 0.05 / 4) },
+      fiber:   { gram: gender === 'male' ? 38 : 25 },
+      water:   { ml: gender === 'male' ? Math.round(35 * 75) : Math.round(31 * 60) },
     }
   }
 
-  // ── Calorie goal adjusted for BMI target ─────────────────────────────────
   function getCalorieGoal(tdee, bmiKey) {
     if (bmiKey === 'very_underweight')  return { cal: tdee + 500, goal: 'Surplus +500 kcal untuk menaikkan BB' }
     if (bmiKey === 'underweight')       return { cal: tdee + 300, goal: 'Surplus +300 kcal untuk menaikkan BB' }
@@ -82,7 +68,6 @@ export function useBMI() {
     return                                     { cal: tdee - 700,  goal: 'Defisit -700 kcal (dengan pengawasan medis)' }
   }
 
-  // ── Ideal weight range (Devine Formula) ───────────────────────────────────
   function getIdealWeightRange(height, gender) {
     const heightIn = height / 2.54
     const base = gender === 'male' ? 50 : 45.5
@@ -92,14 +77,11 @@ export function useBMI() {
     return { min, max, ideal: parseFloat(ideal.toFixed(1)) }
   }
 
-  // ── Body fat % estimate (Deurenberg formula) ──────────────────────────────
-  // Gender-aware: women naturally have higher body fat
   function estimateBodyFat(bmi, age, gender) {
     const sexFactor = gender === 'male' ? 1 : 0
     return parseFloat((1.20 * bmi + 0.23 * age - 10.8 * sexFactor - 5.4).toFixed(1))
   }
 
-  // ── Health risks by category ──────────────────────────────────────────────
   function getHealthRisks(bmiKey, gender) {
     const risks = {
       very_underweight: {
@@ -236,7 +218,6 @@ export function useBMI() {
     return risks[bmiKey] || risks['normal']
   }
 
-  // ── Gender note ───────────────────────────────────────────────────────────
   function getGenderNote(gender) {
     if (gender === 'male') {
       return 'Pria memiliki BMR lebih tinggi karena massa otot lebih besar. Kebutuhan protein dan serat harian juga lebih tinggi.'
@@ -244,7 +225,6 @@ export function useBMI() {
     return 'Wanita memiliki persentase lemak tubuh alami lebih tinggi (10–13% lebih). BMR dihitung dengan formula Mifflin-St Jeor yang mempertimbangkan perbedaan ini.'
   }
 
-  // ── Main calculate function ────────────────────────────────────────────────
   function calculate({ weight, height, age, gender, activity }) {
     const bmi = parseFloat((weight / ((height / 100) ** 2)).toFixed(1))
     const category = getBMICategory(bmi)

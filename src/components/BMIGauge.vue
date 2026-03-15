@@ -29,7 +29,6 @@ const canvasSize = computed(() => {
   return 320
 })
 
-// Gauge segments: very_underweight | underweight | normal | overweight_risk | overweight | obese1 | obese2+
 const segments = [
   { label: 'Sangat Kurus (<17)',  color: '#93c5fd', range: [10, 17] },
   { label: 'Berat Rendah (17–18.5)', color: '#60a5fa', range: [17, 18.5] },
@@ -50,12 +49,10 @@ function bmiToPercent(bmi) {
 }
 
 function buildChartData(bmi) {
-  // Each segment = its range size (normalized)
   const total = MAX_BMI - MIN_BMI
   const segData = segments.map(s => (s.range[1] - s.range[0]) / total * 100)
   const segColors = segments.map(s => s.color)
 
-  // Needle overlay: small filled arc at bmi position
   return {
     datasets: [
       {
@@ -78,7 +75,7 @@ function drawNeedle(chart, bmi) {
   const centerY = height * 0.92
 
   const pct = bmiToPercent(bmi)
-  const angle = Math.PI + pct * Math.PI // 0° = left (low), 180° = right (high)
+  const angle = Math.PI + pct * Math.PI
 
   const needleLen = Math.min(width, height) * 0.35
   const needleWidth = 3
@@ -86,12 +83,10 @@ function drawNeedle(chart, bmi) {
   ctx.save()
   ctx.translate(centerX, centerY)
 
-  // Shadow
   ctx.shadowColor = 'rgba(0,0,0,0.2)'
   ctx.shadowBlur = 4
   ctx.shadowOffsetY = 2
 
-  // Needle line
   ctx.beginPath()
   ctx.moveTo(0, 0)
   ctx.lineTo(
@@ -103,7 +98,6 @@ function drawNeedle(chart, bmi) {
   ctx.lineCap = 'round'
   ctx.stroke()
 
-  // Center dot
   ctx.shadowColor = 'transparent'
   ctx.beginPath()
   ctx.arc(0, 0, 7, 0, Math.PI * 2)

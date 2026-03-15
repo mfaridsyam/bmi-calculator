@@ -250,7 +250,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useBMI } from './composables/useBMI.js'
 import { translations } from './i18n.js'
 import BMIGauge from './components/BMIGauge.vue'
@@ -261,7 +261,24 @@ const { calculate, getBMICategory } = useBMI()
 
 const locale = ref('en')
 const t = computed(() => translations[locale.value])
-function setLocale(l) { locale.value = l }
+function setLocale(l) {
+  locale.value = l
+}
+
+watch(locale, (newLocale) => {
+  if (result.value) {
+    result.value = calculate({
+      weight: form.value.weight, height: form.value.height,
+      age: form.value.age, gender: form.value.gender,
+      activity: form.value.activity, locale: newLocale,
+    })
+  }
+  if (targetResult.value && targetWeight.value) {
+    const hM = form.value.height / 100
+    const targetBmi = parseFloat((targetWeight.value / (hM * hM)).toFixed(1))
+    targetResult.value = { ...targetResult.value, category: getBMICategory(targetBmi, newLocale) }
+  }
+})
 
 const form = ref({ gender: 'male', height: null, weight: null, age: null, activity: 'moderate' })
 const errors = ref({ height: '', weight: '', age: '' })
@@ -296,7 +313,7 @@ function handleCalculate() {
     loadingStepIdx.value = Math.min(Math.floor(tick / (100 / stepsCount)), stepsCount - 1)
     if (tick >= 100) {
       clearInterval(timer)
-      result.value = calculate({ weight: form.value.weight, height: form.value.height, age: form.value.age, gender: form.value.gender, activity: form.value.activity })
+      result.value = calculate({ weight: form.value.weight, height: form.value.height, age: form.value.age, gender: form.value.gender, activity: form.value.activity, locale: locale.value })
       targetWeight.value = null; targetResult.value = null
       setTimeout(() => {
         isLoading.value = false
@@ -330,7 +347,7 @@ function computeTarget() {
   const tw = parseFloat(targetWeight.value); if (tw < 20 || tw > 300) return
   const hM = form.value.height / 100
   const targetBmi = parseFloat((tw / (hM * hM)).toFixed(1))
-  const category = getBMICategory(targetBmi)
+  const category = getBMICategory(targetBmi, locale.value)
   const diff = parseFloat((tw - form.value.weight).toFixed(1))
   const absDiff = Math.abs(diff), isGain = diff > 0, tdee = result.value.tdee
   const tr = t.value
@@ -487,11 +504,11 @@ const quickStats = computed(() => {
 .ideal-val small{font-size:1rem;color:var(--color-text-muted)}
 .ideal-sub{font-size:12px;color:var(--color-text-muted);margin-top:6px}
 .target-input-row{display:flex;gap:12px;align-items:stretch;margin-bottom:14px}
-@media(max-width:560px){.target-input-row{flex-direction:column}.target-btn{width:100%;padding:13px}}
+@media(max-width:560px){.target-input-row{flex-direction:column}.target-btn{width:100%;padding:15px 24px;font-size:15px;min-height:52px}}
 .target-input-wrap{position:relative;flex:1}
 .target-input{padding-right:42px;font-family:var(--font-display);font-size:1.1rem;font-weight:600}
 .target-unit{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--color-text-faint);pointer-events:none}
-.target-btn{padding:0 22px;background:#fef9c3;border:1.5px solid #fde047;border-radius:var(--radius-md);font-family:var(--font-body);font-size:14px;font-weight:600;color:#854d0e;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+.target-btn{padding:0 22px;min-height:48px;background:#fef9c3;border:1.5px solid #fde047;border-radius:var(--radius-md);font-family:var(--font-body);font-size:14px;font-weight:600;color:#854d0e;cursor:pointer;white-space:nowrap;transition:all 0.2s}
 .target-btn:hover:not(:disabled){background:#fef08a;transform:translateY(-1px)}
 .target-btn:disabled{opacity:0.4;cursor:not-allowed}
 .target-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}

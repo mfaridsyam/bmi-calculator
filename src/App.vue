@@ -3,7 +3,7 @@
     <transition name="overlay-fade">
       <div v-if="isLoading" class="loading-overlay">
         <div class="loading-card">
-          <div class="loading-icon-wrap">
+          <div v-if="!loadingLabel" class="loading-icon-wrap">
             <svg class="loading-spin" width="60" height="60" viewBox="0 0 60 60" fill="none">
               <circle cx="30" cy="30" r="26" stroke="#e8e6e0" stroke-width="3"/>
               <path d="M30 4 A26 26 0 0 1 56 30" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/>
@@ -14,7 +14,7 @@
               </svg>
             </div>
           </div>
-          <div class="loading-step">{{ loadingStepText }}</div>
+          <div class="loading-step">{{ loadingLabel || loadingStepText }}</div>
           <div class="loading-bar-wrap"><div class="loading-bar-fill" :style="{ width: loadingPct + '%' }"></div></div>
           <div class="loading-pct">{{ loadingPct }}%</div>
         </div>
@@ -198,9 +198,6 @@
               </div>
               <button class="target-btn" @click="computeTarget" :disabled="!targetWeight">{{ t.analyzeTarget }}</button>
             </div>
-            <div class="target-pills">
-              <button v-for="pill in targetSuggestions" :key="pill.label" class="target-pill" :class="{active:targetWeight===pill.val}" @click="setTargetPill(pill.val)">{{ pill.label }} ({{ pill.val }} kg)</button>
-            </div>
             <transition name="fade-slide">
               <div v-if="targetResult" class="target-result">
                 <div class="target-bmi-bar" :style="{background:targetResult.category.colorLight,borderColor:targetResult.category.color+'55'}">
@@ -250,7 +247,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useBMI } from './composables/useBMI.js'
 import { translations } from './i18n.js'
 import BMIGauge from './components/BMIGauge.vue'
@@ -261,24 +258,46 @@ const { calculate, getBMICategory } = useBMI()
 
 const locale = ref('en')
 const t = computed(() => translations[locale.value])
-function setLocale(l) {
-  locale.value = l
+// Reusable loading runner — runs animation then calls cb()
+// Pass a label string to override the step text with a single static message
+const loadingLabel = ref('')
+function runLoading(cb, durationMs = 1200, label = '') {
+  isLoading.value = true; loadingPct.value = 0; loadingStepIdx.value = 0; loadingLabel.value = label
+  const stepsCount = t.value.loadingSteps.length
+  let tick = 0
+  const ticks = Math.round(durationMs / 20)
+  const timer = setInterval(() => {
+    tick++
+    loadingPct.value = Math.min(Math.round((tick / ticks) * 100), 100)
+    loadingStepIdx.value = Math.min(Math.floor((tick / ticks) * stepsCount), stepsCount - 1)
+    if (tick >= ticks) {
+      clearInterval(timer)
+      loadingPct.value = 100
+      cb()
+      setTimeout(() => { isLoading.value = false; loadingLabel.value = '' }, 250)
+    }
+  }, 20)
 }
 
-watch(locale, (newLocale) => {
-  if (result.value) {
-    result.value = calculate({
-      weight: form.value.weight, height: form.value.height,
-      age: form.value.age, gender: form.value.gender,
-      activity: form.value.activity, locale: newLocale,
-    })
-  }
-  if (targetResult.value && targetWeight.value) {
-    const hM = form.value.height / 100
-    const targetBmi = parseFloat((targetWeight.value / (hM * hM)).toFixed(1))
-    targetResult.value = { ...targetResult.value, category: getBMICategory(targetBmi, newLocale) }
-  }
-})
+function setLocale(l) {
+  if (l === locale.value) return
+  const label = l === 'id' ? 'Mengganti bahasa...' : 'Switching language...'
+  runLoading(() => {
+    locale.value = l
+    if (result.value) {
+      result.value = calculate({
+        weight: form.value.weight, height: form.value.height,
+        age: form.value.age, gender: form.value.gender,
+        activity: form.value.activity, locale: l,
+      })
+    }
+    if (targetResult.value && targetWeight.value) {
+      const hM = form.value.height / 100
+      const targetBmi = parseFloat((targetWeight.value / (hM * hM)).toFixed(1))
+      targetResult.value = { ...targetResult.value, category: getBMICategory(targetBmi, l) }
+    }
+  }, 900, label)
+}
 
 const form = ref({ gender: 'male', height: null, weight: null, age: null, activity: 'moderate' })
 const errors = ref({ height: '', weight: '', age: '' })
@@ -304,23 +323,11 @@ const loadingStepText = computed(() => {
 
 function handleCalculate() {
   if (!isFormValid.value) return
-  isLoading.value = true; loadingPct.value = 0; loadingStepIdx.value = 0
-  const stepsCount = t.value.loadingSteps.length
-  let tick = 0
-  const timer = setInterval(() => {
-    tick++
-    loadingPct.value = tick
-    loadingStepIdx.value = Math.min(Math.floor(tick / (100 / stepsCount)), stepsCount - 1)
-    if (tick >= 100) {
-      clearInterval(timer)
-      result.value = calculate({ weight: form.value.weight, height: form.value.height, age: form.value.age, gender: form.value.gender, activity: form.value.activity, locale: locale.value })
-      targetWeight.value = null; targetResult.value = null
-      setTimeout(() => {
-        isLoading.value = false
-        setTimeout(() => { const el = document.querySelector('.result-panel'); if (el && window.innerWidth < 900) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 100)
-      }, 250)
-    }
-  }, 20)
+  runLoading(() => {
+    result.value = calculate({ weight: form.value.weight, height: form.value.height, age: form.value.age, gender: form.value.gender, activity: form.value.activity, locale: locale.value })
+    targetWeight.value = null; targetResult.value = null
+    setTimeout(() => { const el = document.querySelector('.result-panel'); if (el && window.innerWidth < 900) el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, 100)
+  }, 2200)
 }
 
 function handleReset() {
@@ -332,50 +339,42 @@ function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
 const targetWeight = ref(null)
 const targetResult = ref(null)
-const targetSuggestions = computed(() => {
-  if (!result.value) return []
-  const ideal = result.value.idealWeight.ideal, curr = form.value.weight
-  const items = [{ label: t.value.idealBB, val: parseFloat(ideal.toFixed(1)) }]
-  if (curr < ideal - 3) { items.push({ label: '+5 kg', val: parseFloat((curr+5).toFixed(1)) }); items.push({ label: '+10 kg', val: parseFloat((curr+10).toFixed(1)) }) }
-  if (curr > ideal + 3) { items.push({ label: '-5 kg', val: parseFloat((curr-5).toFixed(1)) }); items.push({ label: '-10 kg', val: parseFloat((curr-10).toFixed(1)) }) }
-  return items
-})
-
-function setTargetPill(val) { targetWeight.value = val; computeTarget() }
 function computeTarget() {
   if (!targetWeight.value || !result.value) return
   const tw = parseFloat(targetWeight.value); if (tw < 20 || tw > 300) return
-  const hM = form.value.height / 100
-  const targetBmi = parseFloat((tw / (hM * hM)).toFixed(1))
-  const category = getBMICategory(targetBmi, locale.value)
-  const diff = parseFloat((tw - form.value.weight).toFixed(1))
-  const absDiff = Math.abs(diff), isGain = diff > 0, tdee = result.value.tdee
-  const tr = t.value
-  let warning = ''
-  if (targetBmi < 18.5) warning = tr.warningBelow
-  else if (targetBmi >= 25) warning = tr.warningAbove
-  if (tw === form.value.weight) warning = tr.warningEqual
-  const rateOpts = [
-    { rate: 0.25, labelKey: 'slow',     recommended: false },
-    { rate: 0.5,  labelKey: 'moderate', recommended: true  },
-    { rate: 1.0,  labelKey: 'fast',     recommended: false },
-  ]
-  const dateLocale = locale.value === 'id' ? 'id-ID' : 'en-US'
-  const plans = rateOpts.map(opt => {
-    const dc = Math.round((opt.rate * 7700) / 7)
-    const dailyCal = isGain ? tdee + dc : tdee - dc
-    const weeks = Math.ceil(absDiff / opt.rate)
-    const d = new Date(); d.setDate(d.getDate() + weeks * 7)
-    const dateStr = d.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })
-    const months = Math.floor(weeks / 4.33), remW = Math.round(weeks % 4.33)
-    const duration = months > 0 ? `${months} ${tr.months}${remW > 0 ? ` ${remW} ${tr.weeks}` : ''}` : `${weeks} ${tr.weeks}`
-    const rateLabel = `${tr[opt.labelKey]} · ${opt.rate} kg${tr.perWeek}`
-    const deficitLabel = isGain ? `${tr.surplus} +${dc} ${tr.kcalPerDay}` : `${tr.deficit} -${dc} ${tr.kcalPerDay}`
-    return { ...opt, rateLabel, dailyCal, deficitLabel, duration, targetDate: dateStr }
-  })
-  const gainTips = [tr.tipGain1, tr.tipGain2, tr.tipGain3, tr.tipGain4, tr.tipGain5, tr.tipGain6]
-  const loseTips = [tr.tipLose1, tr.tipLose2, tr.tipLose3, tr.tipLose4, tr.tipLose5, tr.tipLose6]
-  targetResult.value = { bmi: targetBmi, category, diff, warning, plans, tips: isGain ? gainTips : loseTips }
+  runLoading(() => {
+    const hM = form.value.height / 100
+    const targetBmi = parseFloat((tw / (hM * hM)).toFixed(1))
+    const category = getBMICategory(targetBmi, locale.value)
+    const diff = parseFloat((tw - form.value.weight).toFixed(1))
+    const absDiff = Math.abs(diff), isGain = diff > 0, tdee = result.value.tdee
+    const tr = t.value
+    let warning = ''
+    if (targetBmi < 18.5) warning = tr.warningBelow
+    else if (targetBmi >= 25) warning = tr.warningAbove
+    if (tw === form.value.weight) warning = tr.warningEqual
+    const rateOpts = [
+      { rate: 0.25, labelKey: 'slow',     recommended: false },
+      { rate: 0.5,  labelKey: 'moderate', recommended: true  },
+      { rate: 1.0,  labelKey: 'fast',     recommended: false },
+    ]
+    const dateLocale = locale.value === 'id' ? 'id-ID' : 'en-US'
+    const plans = rateOpts.map(opt => {
+      const dc = Math.round((opt.rate * 7700) / 7)
+      const dailyCal = isGain ? tdee + dc : tdee - dc
+      const weeks = Math.ceil(absDiff / opt.rate)
+      const d = new Date(); d.setDate(d.getDate() + weeks * 7)
+      const dateStr = d.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })
+      const months = Math.floor(weeks / 4.33), remW = Math.round(weeks % 4.33)
+      const duration = months > 0 ? `${months} ${tr.months}${remW > 0 ? ` ${remW} ${tr.weeks}` : ''}` : `${weeks} ${tr.weeks}`
+      const rateLabel = `${tr[opt.labelKey]} · ${opt.rate} kg${tr.perWeek}`
+      const deficitLabel = isGain ? `${tr.surplus} +${dc} ${tr.kcalPerDay}` : `${tr.deficit} -${dc} ${tr.kcalPerDay}`
+      return { ...opt, rateLabel, dailyCal, deficitLabel, duration, targetDate: dateStr }
+    })
+    const gainTips = [tr.tipGain1, tr.tipGain2, tr.tipGain3, tr.tipGain4, tr.tipGain5, tr.tipGain6]
+    const loseTips = [tr.tipLose1, tr.tipLose2, tr.tipLose3, tr.tipLose4, tr.tipLose5, tr.tipLose6]
+    targetResult.value = { bmi: targetBmi, category, diff, warning, plans, tips: isGain ? gainTips : loseTips }
+  }, 1400)
 }
 
 const quickStats = computed(() => {
@@ -391,7 +390,7 @@ const quickStats = computed(() => {
 </script>
 
 <style scoped>
-.app{min-height:100vh;display:flex;flex-direction:column}.container{max-width:1100px;margin:0 auto;padding:0 20px}
+.app{min-height:100vh;display:flex;flex-direction:column;touch-action:pan-y}.container{max-width:1100px;margin:0 auto;padding:0 20px}
 .loading-overlay{position:fixed;inset:0;z-index:9999;background:rgba(248,247,244,0.92);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center}
 .loading-card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);padding:44px 52px;text-align:center;box-shadow:var(--shadow-lg);min-width:280px;max-width:360px;width:90vw}
 .loading-icon-wrap{position:relative;width:70px;height:70px;margin:0 auto 22px}
@@ -416,7 +415,6 @@ const quickStats = computed(() => {
 .lang-btn{display:flex;align-items:center;gap:5px;padding:5px 10px;background:transparent;border:none;border-radius:8px;font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--color-text-faint);cursor:pointer;transition:all 0.18s;letter-spacing:0.04em;white-space:nowrap}
 .lang-btn.active{background:var(--color-surface);color:var(--color-text);box-shadow:0 1px 4px rgba(0,0,0,0.1)}
 .lang-btn:hover:not(.active){color:var(--color-text)}
-.lang-flag{font-size:14px;line-height:1}
 .hero{text-align:center;padding:48px 0 40px}
 .hero-title{font-family:var(--font-display);font-size:clamp(2rem,5vw,3rem);font-weight:600;line-height:1.15;color:var(--color-text);margin-bottom:14px}
 .hero-title em{color:var(--color-green);font-style:italic}
@@ -431,7 +429,7 @@ const quickStats = computed(() => {
 .field-unit{font-size:11px;font-weight:500;background:var(--color-surface-2);color:var(--color-text-faint);padding:2px 8px;border-radius:100px;text-transform:none;letter-spacing:0;flex-shrink:0}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media(max-width:400px){.field-row{grid-template-columns:1fr}}
-.input{width:100%;padding:11px 14px;font-size:15px;font-family:var(--font-body);font-weight:500;background:var(--color-bg);border:1.5px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text);outline:none;transition:border-color 0.2s,box-shadow 0.2s;-moz-appearance:textfield}
+.input{width:100%;padding:11px 14px;font-size:16px;font-family:var(--font-body);font-weight:500;background:var(--color-bg);border:1.5px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text);outline:none;transition:border-color 0.2s,box-shadow 0.2s;-moz-appearance:textfield}
 .input::-webkit-inner-spin-button,.input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .input:focus{border-color:var(--color-green);box-shadow:0 0 0 3px rgba(22,163,74,0.12)}
 .input::placeholder{color:var(--color-text-faint);font-weight:400}
@@ -443,7 +441,7 @@ const quickStats = computed(() => {
 .gender-btn.active{border-color:var(--color-green);background:var(--color-green-light);color:var(--color-green-dark)}
 .gender-icon{font-size:18px}
 .select-wrapper{position:relative}
-.select{width:100%;padding:11px 40px 11px 14px;font-size:14px;font-family:var(--font-body);background:var(--color-bg);border:1.5px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text);outline:none;appearance:none;cursor:pointer;transition:border-color 0.2s}
+.select{width:100%;padding:11px 40px 11px 14px;font-size:16px;font-family:var(--font-body);background:var(--color-bg);border:1.5px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text);outline:none;appearance:none;cursor:pointer;transition:border-color 0.2s}
 .select:focus{border-color:var(--color-green);box-shadow:0 0 0 3px rgba(22,163,74,0.12)}
 .select-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--color-text-faint);pointer-events:none}
 .calc-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px 24px;background:var(--color-green);color:white;border:none;border-radius:var(--radius-md);font-family:var(--font-body);font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s}
@@ -511,10 +509,6 @@ const quickStats = computed(() => {
 .target-btn{padding:0 22px;min-height:48px;background:#fef9c3;border:1.5px solid #fde047;border-radius:var(--radius-md);font-family:var(--font-body);font-size:14px;font-weight:600;color:#854d0e;cursor:pointer;white-space:nowrap;transition:all 0.2s}
 .target-btn:hover:not(:disabled){background:#fef08a;transform:translateY(-1px)}
 .target-btn:disabled{opacity:0.4;cursor:not-allowed}
-.target-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
-.target-pill{padding:5px 14px;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:100px;font-size:12px;font-weight:500;color:var(--color-text-muted);cursor:pointer;transition:all 0.18s}
-.target-pill:hover{border-color:#ca8a04;color:#92400e;background:#fef9c3}
-.target-pill.active{background:#fef9c3;border-color:#fde047;color:#854d0e;font-weight:600}
 .fade-slide-enter-active{transition:opacity 0.35s ease,transform 0.35s ease}
 .fade-slide-leave-active{transition:opacity 0.2s ease}
 .fade-slide-enter-from{opacity:0;transform:translateY(10px)}

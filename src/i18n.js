@@ -1,29 +1,37 @@
 export const translations = {
   en: {
+    // Header
     tagline: 'Body Mass Index Calculator',
+    // Hero
     heroTitle1: 'Check Your', heroTitleEm: 'Health', heroTitle2: 'Body Weight',
     heroSub: 'Complete BMI analysis with calorie needs, disease risks, and nutrition recommendations based on gender & activity level.',
+    // Form
     personalData: 'Personal Data',
     gender: 'Gender', male: 'Male', female: 'Female',
     height: 'Height', weight: 'Weight', age: 'Age', years: 'yrs',
     activityLevel: 'Activity Level',
     activityHint: 'Physical activity affects your daily calorie needs (TDEE).',
     calculateBtn: 'Calculate My BMI', reset: 'Reset',
+    // Activity options
     actSedentaryLabel: 'Very Low', actSedentaryDesc: 'No exercise / desk job',
     actLightLabel: 'Light', actLightDesc: 'Light exercise 1–3 days/week',
     actModerateLabel: 'Moderate', actModerateDesc: 'Moderate exercise 3–5 days/week',
     actActiveLabel: 'Active', actActiveDesc: 'Intense exercise 6–7 days/week',
     actVeryActiveLabel: 'Very Active', actVeryActiveDesc: 'Athlete / heavy physical work',
+    // Errors
     errHeight: 'Height must be between 100–250 cm',
     errWeight: 'Weight must be between 20–300 kg',
     errAge: 'Age must be between 10–100 years',
+    // Gender notes
     genderNoteMale: 'Men have a higher BMR due to greater muscle mass. Daily protein and fiber needs are also higher.',
     genderNoteFemale: "Women naturally have a higher body fat percentage (10–13% more). BMR uses the Mifflin-St Jeor formula which accounts for this difference.",
+    // Result panel
     emptyText: 'Fill in the data on the left, then press\n',
     bmiPosition: 'Position on BMI Scale',
     bmr: 'BMR', tdee: 'TDEE',
     bodyFatEstimate: 'Body Fat', idealWeight: 'Ideal Weight',
     kcalPerDayShort: 'kcal/day', estimate: 'Estimate', devineFormula: "Devine's Formula",
+    // Calorie section
     dailyCalorieNeeds: 'Daily Calorie Needs',
     bmrLabel: 'BMR (Basal Metabolic Rate)',
     tdeeLabel: 'TDEE (with activity)',
@@ -33,13 +41,16 @@ export const translations = {
     whoRec: 'WHO Recommendation', dailyNeeds: 'Daily needs',
     waterNeeds: 'Water Needs', litersPerDay: 'liters / day',
     kcalPerDay: 'kcal/day',
+    // Risks & supps
     healthRisks: 'Health Risks', basedOnCategory: 'Based on category',
     vitaminsSupplements: 'Vitamins & Supplements', recommendedForYou: 'Recommendations for your condition',
     disclaimer: 'Always consult a doctor or nutritionist before taking supplements.',
+    // Ideal section
     devineFor: "Devine's formula for", maleStr: 'men', femaleStr: 'women',
     normalMale: 'Normal men: 8–20%', normalFemale: 'Normal women: 21–33%',
     needLose: 'Need to Lose', needGain: 'Need to Gain',
     nearIdeal: 'Already near ideal ✓', toReach: 'To reach',
+    // Target section
     targetWeight: 'Weight Target',
     targetDesc: 'Enter your dream weight to see time estimates and strategies',
     analyzeTarget: 'Analyze Target', idealBB: 'Ideal Weight',
